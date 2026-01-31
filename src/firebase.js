@@ -1,7 +1,6 @@
 // src/firebase.js
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth"; // Add this line
-import { getAnalytics } from "firebase/analytics";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAgurSheB6ZpwZVIwyQ0nmMutxAJbw5VmM",
@@ -15,9 +14,8 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
 
-// 1. Initialize Firebase Auth
+// Initialize Firebase Auth
 const auth = getAuth(app);
 
 // 2. EXPORT auth so your Auth.jsx component can find it

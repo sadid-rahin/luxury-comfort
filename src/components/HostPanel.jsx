@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, RefreshCw, LogOut, User, MapPin, Volume2, VolumeX } from 'lucide-react';
+import { Bell, RefreshCw, LogOut, User, MapPin } from 'lucide-react';
 import Auth from './Auth';
 
 // 🔴 PASTE YOUR NEW URL HERE 🔴

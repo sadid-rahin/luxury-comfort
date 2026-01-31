@@ -36,7 +36,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 md:h-16 flex items-center justify-between gap-4">
           {/* Left: Logo + Brand */}
           <a
-            href="#"
+            href="#!"
             onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
             className="flex items-center gap-2.5 min-w-0 flex-shrink-0"
           >
