@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import Home from './components/Home'; 
 import HostPanel from './components/HostPanel';
 
@@ -11,9 +11,25 @@ const ProtectedRoute = ({ children }) => {
   return children;
 };
 
+// Restore path after 404 redirect (GitHub Pages SPA fix)
+function RedirectHandler() {
+  const navigate = useNavigate();
+  useEffect(() => {
+    const redirect = sessionStorage.redirect;
+    if (redirect) {
+      delete sessionStorage.redirect;
+      const base = process.env.PUBLIC_URL || '';
+      const path = (base ? redirect.replace(new RegExp('^' + base.replace(/\//g, '\\/')), '') : redirect) || '/';
+      navigate(path, { replace: true });
+    }
+  }, [navigate]);
+  return null;
+}
+
 function App() {
   return (
-    <Router>
+    <Router basename={process.env.PUBLIC_URL || ''}>
+      <RedirectHandler />
       <div className="app-container">
         <Routes>
           {/* Main Booking Page */}
