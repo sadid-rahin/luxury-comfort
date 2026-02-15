@@ -12,9 +12,11 @@ const ProtectedRoute = ({ children }) => {
 };
 
 // Restore path after 404 redirect (GitHub Pages SPA fix)
+// Skip in development so "npm run dev" always shows Home first
 function RedirectHandler() {
   const navigate = useNavigate();
   useEffect(() => {
+    if (process.env.NODE_ENV === 'development') return;
     const redirect = sessionStorage.redirect;
     if (redirect) {
       delete sessionStorage.redirect;

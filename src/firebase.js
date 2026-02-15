@@ -1,4 +1,4 @@
-// src/firebase.js
+// LOCATION: src/firebase.js
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 
@@ -15,8 +15,8 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firebase Auth
+// Initialize Authentication
 const auth = getAuth(app);
 
-// 2. EXPORT auth so your Auth.jsx component can find it
+// Export it so other files can use it
 export { auth };

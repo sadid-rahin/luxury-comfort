@@ -1,4 +1,7 @@
+// LOCATION: src/components/Auth.jsx
 import React, { useState } from 'react';
+
+// 🔴 CRITICAL FIX: The ".." tells it to go UP one folder to find firebase.js
 import { auth } from '../firebase'; 
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 
@@ -39,7 +42,7 @@ export default function Auth({ onAuthSuccess }) {
   };
 
   return (
-    <div className="bg-slate-900 p-8 rounded-[3rem] border border-slate-800 shadow-2xl">
+    <div className="bg-slate-900 p-8 rounded-[3rem] border border-slate-800 shadow-2xl max-w-md mx-auto mt-10">
       <h2 className="text-2xl font-black uppercase italic text-amber-500 mb-6 text-center">
         {isLogin ? 'Host Login' : 'Host Registration'}
       </h2>
