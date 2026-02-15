@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, RefreshCw, LogOut, User, MapPin, Phone, Car, Printer, Briefcase, Users, Clock } from 'lucide-react';
+import { Bell, RefreshCw, LogOut, User, MapPin, Phone, Car, Printer, Briefcase, Users, Clock, Trash2 } from 'lucide-react';
 import Auth from './Auth';
 
 const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwHgxuyiNIQ0u5_G5FbZU9c9l0lX9klj31ECzPCHoM7L83yQhl5uxfvju8H4UmRibyB/exec";
@@ -119,6 +119,41 @@ export default function HostPanel() {
     }
   };
 
+  // 🔥 NEW FEATURE: Delete a booking from the waitlist
+  const handleDeleteBooking = async (e, booking) => {
+    e.stopPropagation(); // Stop the row from being selected
+    
+    const guestName = getVal(booking, ['Guest_name', 'Guest Name', 'guest_name']);
+    const isConfirmed = window.confirm(`Are you sure you want to delete the booking for ${guestName}?`);
+    
+    if (!isConfirmed) return;
+
+    // Send a "Cancelled" status to Google Sheets so it disappears from the pending list
+    const deleteData = {
+      ...booking,
+      Source: getVal(booking, ['Source', 'source']),
+      Status: 'Cancelled',
+      status: 'Cancelled' 
+    };
+
+    try {
+      await fetch(SCRIPT_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        body: JSON.stringify({ action: 'update', data: deleteData }) 
+      });
+      
+      // Clear the right side if they were currently viewing the person they just deleted
+      if (selectedBooking && getVal(selectedBooking, ['Source', 'source']) === getVal(booking, ['Source', 'source'])) {
+        setSelectedBooking(null);
+      }
+      
+      fetchOrders(); // Instantly refresh the waitlist
+    } catch (error) {
+      alert("Failed to delete the booking.");
+    }
+  };
+
   const handleDispatch = async (e) => {
     e.preventDefault();
     if (!selectedBooking) return;
@@ -138,7 +173,8 @@ export default function HostPanel() {
       Vehicle_number: vehicleNum, 
       Wait_Time: waitingMinutes, 
       Wait_Fee: waitFee,         
-      Status: 'Host Confirmed' // The script usually uses uppercase Status
+      Status: 'Host Confirmed', // Send both formats just in case Google Sheets is picky
+      status: 'Host Confirmed' 
     };
 
     try {
@@ -163,7 +199,6 @@ export default function HostPanel() {
   if (receiptData) {
     const rx = receiptData;
     
-    // EXACT MAPPING
     const sourceRef = getVal(rx, ['Source', 'source']);
     const tripDate = formatDate(getVal(rx, ['Date', 'date']));
     const tripTime = formatTime(getVal(rx, ['Time', 'time']));
@@ -265,7 +300,6 @@ export default function HostPanel() {
                         <div><span className="block text-[10px] font-bold uppercase text-slate-400 leading-none mb-1">Pickup Location</span><span className="font-bold text-sm leading-tight block">{pickup}</span></div>
                      </div>
                      
-                     {/* 🔥 EXTRA STOPS BLOCK */}
                      {extraStopsCount > 0 && (
                         <div className="flex items-start gap-3 ml-1">
                            <div className="mt-1 w-2 h-2 rounded-full bg-slate-400 border border-white shadow-sm shrink-0"></div>
@@ -357,10 +391,22 @@ export default function HostPanel() {
                 onClick={() => handleSelectBooking(b)} 
                 className={`p-6 rounded-[2.5rem] border-2 cursor-pointer transition-all ${getVal(selectedBooking, ['Source', 'source']) === getVal(b, ['Source', 'source']) ? 'border-amber-500 bg-amber-500/10' : 'border-slate-800 bg-slate-900'}`}
               >
-                <div className="font-black text-sm uppercase flex justify-between mb-2">
+                {/* 🔥 DELETION BUTTON */}
+                <div className="font-black text-sm uppercase flex justify-between mb-2 items-center">
                    <span className="flex items-center gap-2"><User size={14} className="text-amber-500" /> {getVal(b, ['Guest_name', 'Guest Name', 'guest_name'])}</span>
-                   <span className="text-slate-500 text-[10px]">{formatTime(getVal(b, ['Time', 'time']))}</span>
+                   
+                   <div className="flex items-center gap-3">
+                     <span className="text-slate-500 text-[10px]">{formatTime(getVal(b, ['Time', 'time']))}</span>
+                     <button 
+                       onClick={(e) => handleDeleteBooking(e, b)}
+                       className="p-1.5 bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white rounded-md transition-colors"
+                       title="Delete Booking"
+                     >
+                       <Trash2 size={14} />
+                     </button>
+                   </div>
                 </div>
+
                 <div className="flex items-center gap-2 text-[10px] text-slate-400 mb-2 pl-6">
                    <Phone size={10} /> {getVal(b, ['Guest_number', 'Guest Number', 'guest_number'])}
                 </div>
