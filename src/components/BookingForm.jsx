@@ -9,7 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // ─────────────────────────────────────────────────────────────────────────────
 const BACKEND_URL = "https://elite-transport-backend.onrender.com";
 const stripePromise = loadStripe("pk_test_51Sx57rFVFmdbJGhjAMobcQfMvc9Ur2fWde1AilhYul33gzBMeLpUSWGWKYKzWX7FkNjRetx7e0Rf0DdINpMUWQ6800szEvZVwl");
-const MAPBOX_TOKEN = 'pk.eyJ1Ijoic2FkaWQtcmFoaW4xOCIsImEiOiJjbWx4a2I0MnkwdjVzM2RwdGR2YTJ3OTQ0In0.TpYF3vwy0QrsfKCo8Cuqig'; 
+const MAPBOX_TOKEN = process.env.REACT_APP_MAPBOX_TOKEN; 
 
 const FLEET_PRICING = {
   zones: {
