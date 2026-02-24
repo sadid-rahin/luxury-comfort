@@ -66,7 +66,6 @@ export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState('Business');
 
-  // Recovery State
   const [searchEmail, setSearchEmail] = useState('');
   const [isSearching, setIsSearching] = useState(false);
 
@@ -80,13 +79,18 @@ export default function Home() {
     if (!searchEmail) return;
     setIsSearching(true);
     try {
-      // ✅ SECURITY FIX: Fetch via Proxy
-      const res = await fetch(`${BACKEND_URL}/sync-google`);
-      const allRows = await res.json();
-      const found = allRows.find(row =>
+      const res = await fetch(`${BACKEND_URL}/sync-google?t=${Date.now()}`);
+      const jsonRes = await res.json();
+      
+      let rowsArray = [];
+      if (Array.isArray(jsonRes)) rowsArray = jsonRes;
+      else if (jsonRes && Array.isArray(jsonRes.data)) rowsArray = jsonRes.data;
+
+      const found = [...rowsArray].reverse().find(row =>
         getVal(row, ['Email', 'email']).toLowerCase() === searchEmail.toLowerCase() &&
         getVal(row, ['Status', 'status']).toLowerCase() !== 'cancelled'
       );
+      
       if (found) {
         setGuestData(found);
         setStep('waiting');
@@ -126,13 +130,31 @@ export default function Home() {
         </div>
       </nav>
 
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {isMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="fixed inset-0 z-[49] bg-slate-900 pt-20 px-6 md:hidden"
+          >
+            <div className="flex flex-col gap-6">
+              <button onClick={() => scrollToSection('how-it-works')} className="text-lg font-black uppercase italic text-left border-b border-slate-800 pb-4">How to Process</button>
+              <button onClick={() => scrollToSection('services')} className="text-lg font-black uppercase italic text-left border-b border-slate-800 pb-4">Services</button>
+              <button onClick={() => scrollToSection('policy')} className="text-lg font-black uppercase italic text-left border-b border-slate-800 pb-4">Terms & Policy</button>
+              <button onClick={() => scrollToSection('contact')} className="text-lg font-black uppercase italic text-left border-b border-slate-800 pb-4">Contact Us</button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <section className="pt-32 pb-20 px-6 md:px-12 border-b border-slate-800">
         <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           <motion.div initial={{ x: -50, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="no-print">
             <h1 className="text-6xl md:text-8xl font-black italic uppercase leading-[0.8] tracking-tighter mb-4">Elite <br /><span className="text-amber-500">Dubai</span> <br />Transport</h1>
             <div className="h-1.5 w-24 bg-amber-500 rounded-full mb-6"></div>
 
-            {/* Find My Booking Recovery UI */}
             <div className="max-w-xs mt-10 p-6 bg-slate-900/50 rounded-3xl border border-white/5">
               <p className="text-[10px] font-black uppercase text-slate-500 tracking-[0.2em] mb-4">Manage Existing Booking</p>
               <form onSubmit={handleFindBooking} className="relative">
@@ -174,7 +196,6 @@ export default function Home() {
         <div id="how-it-works"><HowItWorks /></div>
         <div id="services"><OurServices /></div>
 
-        {/* --- 📜 PROFESSIONAL TERMS & CANCELLATION POLICY SECTION --- */}
         <section id="policy" className="py-24 px-6 bg-slate-900/50 border-t border-slate-800">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-4 mb-12">
@@ -263,35 +284,77 @@ export default function Home() {
 
 function BookingWaitingScreen({ data }) {
   const [confirmedData, setConfirmedData] = useState(null);
+  const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
-    const interval = setInterval(async () => {
+    if (!data) return;
+
+    // 🔥 FAIL-PROOF FIX: Extract only Email and Name. 
+    // We rely solely on these because Google Sheets never alters text formatting.
+    const myEmail = String(getVal(data, ['Email', 'email'], "")).trim().toLowerCase();
+    const myName = String(getVal(data, ['Guest_name', 'Guest Name', 'guest_name'], "")).trim().toLowerCase();
+
+    const fetchStatus = async () => {
       try {
-        // ✅ SECURITY FIX: Fetch via Proxy
-        const res = await fetch(`${BACKEND_URL}/sync-google`);
-        const allRows = await res.json();
-        const match = allRows.find(row => {
-          const rowID = getVal(row, ['Source', 'source', 'ID'], "");
-          const myID = String(getVal(data, ['Source', 'source', 'ID'], "")).trim();
-          const status = getVal(row, ['Status', 'status', 'STATUS'], "").toLowerCase();
-          return rowID === myID && status === "host confirmed";
+        setIsChecking(true);
+        // Force bypass of any cache
+        const res = await fetch(`${BACKEND_URL}/sync-google?nocache=${Date.now()}`, { cache: 'no-store' });
+        const jsonRes = await res.json();
+        
+        let allRows = Array.isArray(jsonRes) ? jsonRes : (jsonRes.data || []);
+        
+        // 1. Gather all trips that belong to this specific guest
+        const myTrips = allRows.filter(row => {
+          const rowEmail = String(getVal(row, ['Email', 'email'], "")).trim().toLowerCase();
+          const rowName = String(getVal(row, ['Guest_name', 'Guest Name', 'guest_name'], "")).trim().toLowerCase();
+          return rowEmail === myEmail && rowName === myName;
         });
-        if (match) {
-          setConfirmedData(match);
-          clearInterval(interval);
+
+        if (myTrips.length > 0) {
+          // 2. Grab the VERY LAST row in their list (This is ALWAYS their newest booking)
+          const newestTrip = myTrips[myTrips.length - 1];
+          const status = String(getVal(newestTrip, ['Status', 'status', 'STATUS'], "")).toLowerCase();
+          
+          // 3. If that specific new trip is confirmed, we stop waiting.
+          if (status.includes("confirm")) {
+            setConfirmedData(newestTrip);
+            setIsChecking(false);
+            return true;
+          }
         }
-      } catch (e) { console.error("Syncing..."); }
-    }, 4000);
+        setIsChecking(false);
+        return false;
+      } catch (err) {
+        console.error("Polling error:", err);
+        setIsChecking(false);
+        return false;
+      }
+    };
+
+    // Run the check immediately, then every 3 seconds
+    let interval;
+    fetchStatus().then(isConfirmed => {
+      if (!isConfirmed) {
+        interval = setInterval(async () => {
+          const done = await fetchStatus();
+          if (done) clearInterval(interval);
+        }, 3000);
+      }
+    });
+
     return () => clearInterval(interval);
   }, [data]);
 
   if (confirmedData) {
-    const rx = confirmedData;
-    const sourceRef = getVal(rx, ['Source', 'source']);
+    // Show Receipt UI
+    const rx = { ...data, ...confirmedData };
+
+    const sourceRef = getVal(rx, ['Source', 'source'], "N/A");
     const tripDate = formatDate(getVal(rx, ['Date', 'date']));
     const tripTime = formatTime(getVal(rx, ['Time', 'time']));
     const guestName = getVal(rx, ['Guest_name', 'Guest Name', 'guest_name']);
-    const guestPhone = getVal(rx, ['Guest_number', 'Guest Number', 'guest_number']);
+    const guestPhoneSheet = getVal(confirmedData, ['Guest_number', 'Guest Number', 'guest_number'], "");
+    const guestPhone = (guestPhoneSheet && guestPhoneSheet !== "N/A") ? guestPhoneSheet : getVal(data, ['Guest_number', 'Guest Number', 'guest_number'], "N/A");
     const guestEmail = getVal(rx, ['Email', 'email']);
     const flightNum = getVal(rx, ['Flight', 'flight'], "N/A");
     const pickup = getVal(rx, ['Pickup', 'pickup']);
@@ -301,10 +364,16 @@ function BookingWaitingScreen({ data }) {
     const driverPhone = getVal(rx, ['Driver_number', 'Driver number', 'driver_number'], "Pending");
     const vehiclePlate = getVal(rx, ['Vehicle_number', 'Vehicle number', 'vehicle_number'], "Pending");
     const price = getVal(rx, ['Price', 'price', 'Amount', 'amount'], "0");
-    const payment = getVal(rx, ['Payment', 'payment'], "Cash");
+    const rawPayment = getVal(confirmedData, ['Payment', 'payment'], "");
+    const payment = (rawPayment === "Cash" || rawPayment === "") ? getVal(data, ['Payment', 'payment'], "Cash") : rawPayment;
+    const extraStopsCount = Number(getVal(rx, ['Extra_Stops', 'Extra Stops', 'extra_stops'], 0));
+    const stopNames = getVal(rx, ['Stop_Names', 'Stop Names', 'stop_names'], "None");
     const waitTime = Number(getVal(rx, ['Wait_Time', 'Wait Time', 'wait_time'], 0));
     const waitFee = Number(getVal(rx, ['Wait_Fee', 'Wait Fee', 'wait_fee'], 0));
-    const capacity = FLEET_CAPACITY[carType] || { pax: 4, luggage: 2 };
+    const paxRaw = getVal(data, ['Pax', 'pax'], "");
+    const paxCount = (paxRaw && paxRaw !== "N/A") ? paxRaw : getVal(rx, ['Pax', 'pax'], "1");
+    const lugRaw = getVal(data, ['Luggage', 'luggage'], "");
+    const luggageCount = (lugRaw && lugRaw !== "N/A") ? lugRaw : getVal(rx, ['Luggage', 'luggage'], "0");
 
     return (
       <>
@@ -332,7 +401,7 @@ function BookingWaitingScreen({ data }) {
               <div className="bg-slate-50 border border-slate-100 p-5 rounded-2xl">
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-4 pb-4 border-b border-slate-200">
                   <div><span className="block text-[10px] font-bold uppercase text-slate-400">Lead Passenger</span><span className="font-bold text-sm text-slate-900">{guestName}</span></div>
-                  <div><span className="block text-[10px] font-bold uppercase text-slate-400">Pax & Luggage</span><span className="font-bold text-sm text-slate-900 flex items-center gap-2 mt-0.5">{capacity.pax} <Users size={14} className="text-amber-500" /> | {capacity.luggage} <Briefcase size={14} className="text-amber-500" /></span></div>
+                  <div><span className="block text-[10px] font-bold uppercase text-slate-400">Pax & Luggage</span><span className="font-bold text-sm text-slate-900 flex items-center gap-2 mt-0.5">{paxCount} <Users size={14} className="text-amber-500" /> | {luggageCount} <Briefcase size={14} className="text-amber-500" /></span></div>
                   <div><span className="block text-[10px] font-bold uppercase text-slate-400">Booking Class</span><span className="font-bold text-sm capitalize text-slate-900">{carType}</span></div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -350,6 +419,9 @@ function BookingWaitingScreen({ data }) {
                 <div className="grid grid-cols-2 gap-4 relative z-10"><div><span className="block text-[10px] font-bold uppercase text-slate-400">Trip Date & Time</span><span className="font-bold text-sm">{tripDate} <span className="text-amber-600">@</span> {tripTime}</span></div></div>
                 <div className="space-y-4 relative z-10 mt-2">
                   <div className="flex items-start gap-3"><div className="mt-1 w-3 h-3 rounded-full bg-amber-500 border-2 border-white shadow-sm shrink-0"></div><div><span className="block text-[10px] font-bold uppercase text-slate-400 leading-none mb-1">Pickup Location</span><span className="font-bold text-sm leading-tight block">{pickup}</span></div></div>
+                  {extraStopsCount > 0 && (
+                    <div className="flex items-start gap-3 ml-1"><div className="mt-1 w-2 h-2 rounded-full bg-slate-400 border border-white shadow-sm shrink-0"></div><div><span className="block text-[10px] font-bold uppercase text-slate-400 leading-none mb-1">Extra Stops ({extraStopsCount})</span><span className="font-bold text-sm leading-tight block text-slate-600">{stopNames}</span></div></div>
+                  )}
                   <div className="flex items-start gap-3"><div className="mt-1 w-3 h-3 rounded-full bg-slate-900 border-2 border-white shadow-sm shrink-0"></div><div><span className="block text-[10px] font-bold uppercase text-slate-400 leading-none mb-1">Dropoff Location</span><span className="font-bold text-sm leading-tight block">{dropoff}</span></div></div>
                 </div>
               </div>
@@ -368,61 +440,42 @@ function BookingWaitingScreen({ data }) {
 
             <section>
               <div className={`p-5 rounded-2xl ${payment.includes('100%') ? 'bg-emerald-50 border border-emerald-100' : 'bg-amber-50 border border-amber-100'}`}>
-                {waitFee > 0 && (
-                  <div className="flex justify-between items-center mb-3 pb-3 border-b border-rose-200/50">
-                    <span className="text-[10px] font-black uppercase text-rose-500">Late Waiting Penalty ({waitTime - 60} mins)</span>
-                    <span className="text-sm font-black text-rose-600">+ AED {waitFee} (Due Cash)</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-200/50">
-                  <span className="text-xs font-bold uppercase text-slate-500 tracking-wider">Total Route Amount</span>
-                  <span className="text-lg font-black text-slate-400">AED {price}</span>
-                </div>
-                {payment.includes('25%') && (
-                  <div className="flex justify-between items-center mb-3 pb-3 border-b border-emerald-200/50">
-                    <span className="text-[10px] font-black uppercase text-emerald-600">25% Deposit (Paid via Card)</span>
-                    <span className="text-sm font-black text-emerald-600">- AED {Math.round(Number(price) * 0.25)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-200/50">
-                  <span className="text-xs font-bold uppercase text-slate-500 tracking-wider">{payment.includes('100%') ? "Amount Due to Driver" : "Cash Due to Driver"}</span>
-                  <span className={`text-3xl font-black ${payment.includes('100%') ? 'text-emerald-600' : 'text-slate-900'}`}>AED {payment.includes('100%') ? '0' : (payment.includes('25%') ? (Number(price) - Math.round(Number(price) * 0.25)) : price)}</span>
-                </div>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-xs font-bold uppercase text-slate-500 tracking-wider flex items-center gap-2">Status</span>
-                  <span className={`font-black text-[9px] uppercase px-3 py-1 rounded-full text-right max-w-[200px] leading-tight ${payment.includes('100%') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>
-                    {payment.split(' (Ref')[0]}
-                  </span>
-                </div>
+                {waitFee > 0 && (<div className="flex justify-between items-center mb-3 pb-3 border-b border-rose-200/50"><span className="text-[10px] font-black uppercase text-rose-500">Late Waiting Penalty ({waitTime - 60} mins)</span><span className="text-sm font-black text-rose-600">+ AED {waitFee} (Due Cash)</span></div>)}
+                <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-200/50"><span className="text-xs font-bold uppercase text-slate-500 tracking-wider">Total Route Amount</span><span className="text-lg font-black text-slate-400">AED {price}</span></div>
+                {payment.includes('25%') && (<div className="flex justify-between items-center mb-3 pb-3 border-b border-emerald-200/50"><span className="text-[10px] font-black uppercase text-emerald-600">25% Deposit (Paid via Card)</span><span className="text-sm font-black text-emerald-600">- AED {Math.round(Number(price) * 0.25)}</span></div>)}
+                <div className="flex justify-between items-center mb-3 pb-3 border-b border-slate-200/50"><span className="text-xs font-bold uppercase text-slate-500 tracking-wider">{payment.includes('100%') ? "Amount Due to Driver" : "Cash Due to Driver"}</span><span className={`text-3xl font-black ${payment.includes('100%') ? 'text-emerald-600' : 'text-slate-900'}`}>AED {payment.includes('100%') ? '0' : (payment.includes('25%') ? (Number(price) - Math.round(Number(price) * 0.25)) : price)}</span></div>
+                <div className="flex justify-between items-center mt-2"><span className="text-xs font-bold uppercase text-slate-500 tracking-wider flex items-center gap-2">Status</span><span className={`font-black text-[9px] uppercase px-3 py-1 rounded-full text-right max-w-[200px] leading-tight ${payment.includes('100%') ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{payment.split(' (Ref')[0]}</span></div>
               </div>
             </section>
 
-            {/* WhatsApp Cancellation Button */}
-            <div className="no-print space-y-3 mt-6">
-              <a
-                href={`https://wa.me/971505555555?text=I%20wish%20to%20cancel%20my%20booking%20Ref:%20${sourceRef}`}
-                target="_blank"
-                rel="noreferrer"
-                className="w-full bg-rose-500/10 text-rose-600 py-4 rounded-xl font-bold uppercase flex items-center justify-center gap-2 hover:bg-rose-600 hover:text-white transition-all border border-rose-200"
-              >
-                <X size={18} /> Cancel Booking via WhatsApp
-              </a>
-              <p className="text-[9px] text-slate-400 text-center italic uppercase font-black">
-                * Cancellations are subject to the 6-hour refund policy.
-              </p>
-            </div>
           </div>
-          <button onClick={() => window.print()} className="no-print-btn w-full mt-6 bg-slate-900 text-white py-4 rounded-xl font-bold uppercase flex items-center justify-center gap-2 hover:bg-slate-800 mb-3 transition-colors shadow-lg"><Printer size={18} /> Print Record</button>
+
+          <button onClick={() => window.print()} className="no-print-btn w-full mt-6 bg-slate-900 text-white py-4 rounded-xl font-bold uppercase flex items-center justify-center gap-2 hover:bg-slate-800 mb-3 transition-colors shadow-lg">
+            <Printer size={18} /> Print Record
+          </button>
+
+          <div className="no-print space-y-3">
+            <a href={`https://wa.me/971566326983?text=I%20wish%20to%20cancel%20my%20booking%20Ref:%20${sourceRef}`} target="_blank" rel="noreferrer" className="w-full bg-rose-500/10 text-rose-600 py-4 rounded-xl font-bold uppercase flex items-center justify-center gap-2 hover:bg-rose-600 hover:text-white transition-all border border-rose-200">
+              <X size={18} /> Cancel Booking via WhatsApp
+            </a>
+            <p className="text-[9px] text-slate-400 text-center italic uppercase font-black">* Cancellations are subject to the 6-hour refund policy.</p>
+          </div>
         </div>
       </>
     );
   }
 
   return (
-    <div className="text-center p-16 bg-slate-800/10 rounded-[4rem] border-2 border-dashed border-slate-700/50 backdrop-blur-md">
+    <div className="text-center p-16 bg-slate-800/10 rounded-[4rem] border-2 border-dashed border-slate-700/50 backdrop-blur-md relative overflow-hidden">
       <div className="w-16 h-16 border-4 border-amber-500 border-t-transparent rounded-full mx-auto mb-8 animate-spin" />
-      <h2 className="text-3xl font-black uppercase italic text-white">Awaiting Host</h2>
-      <p className="text-slate-400 text-xs mt-6 uppercase font-bold tracking-widest">Receipt will appear automatically when driver is assigned.</p>
+      <h2 className="text-3xl font-black uppercase italic text-white mb-2">Awaiting Host</h2>
+      <p className="text-amber-500 text-sm font-bold uppercase tracking-widest mb-6">Connecting to Dispatch Terminal</p>
+      
+      {/* Visual indicator showing that it is actively checking in the background */}
+      <div className="flex items-center justify-center gap-2 text-slate-500 text-[10px] uppercase font-black mt-8">
+        <Clock size={12} className={isChecking ? "animate-pulse text-amber-500" : ""} />
+        <span>{isChecking ? "Checking database..." : "Waiting for next sync cycle"}</span>
+      </div>
     </div>
   );
 }
