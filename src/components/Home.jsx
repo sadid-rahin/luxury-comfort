@@ -243,7 +243,7 @@ export default function Home() {
                   <ShieldCheck size={18} /> Arrival & Waiting Policy
                 </h4>
                 <div className="space-y-4 text-sm text-slate-300">
-                  <p>• <strong>Airport Pickups:</strong> 60 minutes complimentary waiting time after flight landing. After complimentary the exta time is chargeable per hour 60 AED. Customer is marked No-Show if not reached within this period.</p>
+                  <p>• <strong>Airport Pickups:</strong> 60 minutes complimentary waiting time after flight landing. After complimentary the exta time is chargeable. Customer is marked No-Show if not reached within this period.</p>
                   <p>• <strong>City/Hotel Pickups:</strong> 15 minutes complimentary waiting time. Standard hourly waiting charges apply thereafter.</p>
                   <p>• <strong>No-Show:</strong> Charged at 100% fare. Occurs when a guest does not arrive, respond, or exceeds waiting limits.</p>
                 </div>

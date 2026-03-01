@@ -9,7 +9,52 @@
   }
 }
 
-/* Custom Scrollbar for a premium look */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: #0f172a; }
-::-webkit-scrollbar-thumb { background: #f59e0b; border-radius: 10px; }
+/* --- GOOGLE AUTOCOMPLETE PREMIUM DARK THEME --- */
+
+/* Main Dropdown Box */
+.pac-container {
+    background-color: #0f172a !important; /* Matches your Elite Ride dark background */
+    border: 1px solid #334155 !important; /* Subtle gray border */
+    border-radius: 12px !important; /* Rounded corners */
+    margin-top: 8px !important;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5) !important;
+    z-index: 99999 !important;
+    font-family: inherit !important;
+}
+
+/* Individual Address Rows */
+.pac-item {
+    color: #94a3b8 !important; /* Light gray for the secondary address text */
+    border-top: 1px solid #1e293b !important; /* Separator lines */
+    padding: 12px 16px !important;
+    cursor: pointer !important;
+    transition: background-color 0.2s ease !important;
+}
+
+/* Highlight row when mouse hovers over it */
+.pac-item:hover {
+    background-color: #1e293b !important; 
+}
+
+/* The Main Matched Text (e.g., "Abu Dhabi") */
+.pac-item-query {
+    color: #ffffff !important; /* Pure white so it stands out */
+    font-weight: 700 !important;
+    font-size: 14px !important;
+    padding-right: 4px !important;
+}
+
+/* The small Map Pin Icon next to addresses */
+.pac-icon {
+    filter: invert(1) brightness(0.7) !important; /* Turns Google's black pin into a light gray pin */
+    margin-right: 10px !important;
+}
+
+/* REMOVE THE "POWERED BY GOOGLE" LOGO */
+.pac-container:after {
+    display: none !important;
+    background-image: none !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}

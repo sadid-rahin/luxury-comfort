@@ -1,21 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MapPin, Lock, Phone, Plus, PlaneLanding, PlaneTakeoff, MoveRight, Clock } from 'lucide-react';
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements, CardElement, useStripe, useElements } from "@stripe/react-stripe-js";
 import { motion, AnimatePresence } from 'framer-motion';
 
+const BACKEND_URL = "https://elite-transport-backend.onrender.com";
+const stripePromise = loadStripe("pk_test_51Sx57rFVFmdbJGhjAMobcQfMvc9Ur2fWde1AilhYul33gzBMeLpUSWGWKYKzWX7FkNjRetx7e0Rf0DdINpMUWQ6800szEvZVwl");
+
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIGURATION (MATCHED TO ROYAL FALCON PRICING)
 // ─────────────────────────────────────────────────────────────────────────────
-const BACKEND_URL = "https://elite-transport-backend.onrender.com";
-const stripePromise = loadStripe("pk_test_51Sx57rFVFmdbJGhjAMobcQfMvc9Ur2fWde1AilhYul33gzBMeLpUSWGWKYKzWX7FkNjRetx7e0Rf0DdINpMUWQ6800szEvZVwl");
-// Change it to look exactly like this:
-const MAPBOX_TOKEN = "pk." + "eyJ1Ijoic2FkaWQtcmFoaW4xOCIsImEiOiJjbW0wcGFlcWkwMHhwMnFwank0eTJ6NHRqIn0.ZTnBHFeUAHe4DtSAMheg7Q";
-console.log("My token is loading: ", process.env.REACT_APP_MAPBOX_TOKEN);
-
 const FLEET_PRICING = {
   zones: {
-    // MATCHED: Royal Falcon Transfer Rates
     abu_dhabi: { arrival: { Sedan: 110, Business: 120, SUV: 130, MPV: 140, MiniBus: 180, Viano: 300 }, transfer: { Sedan: 110, Business: 120, SUV: 130, MPV: 140, MiniBus: 180, Viano: 300 } },
     dxb: { arrival: { Sedan: 300, Business: 350, SUV: 350, MPV: 400, MiniBus: 550, Viano: 650 }, transfer: { Sedan: 300, Business: 350, SUV: 350, MPV: 400, MiniBus: 550, Viano: 650 } },
     shj: { arrival: { Sedan: 400, Business: 450, SUV: 450, MPV: 500, MiniBus: 600, Viano: 750 }, transfer: { Sedan: 400, Business: 450, SUV: 450, MPV: 500, MiniBus: 600, Viano: 750 } },
@@ -26,17 +22,16 @@ const FLEET_PRICING = {
     al_ain: { transfer: { Sedan: 400, Business: 500, SUV: 500, MPV: 550, MiniBus: 600, Viano: 700 } }
   },
   hourly: {
-    // MATCHED: Royal Falcon Hourly (5h/10h) Rates
     half_day: { Sedan: 350, Business: 400, SUV: 400, MPV: 450, MiniBus: 600, Viano: 750 }, 
     full_day: { Sedan: 650, Business: 750, SUV: 750, MPV: 850, MiniBus: 1100, Viano: 1300 }
   }
 };
 
 const FLEET_DATA = [
-  { id: 'Sedan', name: 'Standard Sedan (Camry)' },
-  { id: 'Business', name: 'Lexus ES 300h' },
-  { id: 'SUV', name: 'Premium SUV (Yukon)' },
-  { id: 'MPV', name: 'Luxury MPV (Sienna)' },
+  { id: 'Sedan', name: 'Standard Sedan' },
+  { id: 'Business', name: 'Business sedan' },
+  { id: 'SUV', name: 'Premium SUV' },
+  { id: 'MPV', name: 'Luxury MPV' },
   { id: 'MiniBus', name: 'Hiace / Mini Bus' },
   { id: 'Viano', name: 'Mercedes V-Class' }
 ];
@@ -45,10 +40,14 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
   const stripe = useStripe();
   const elements = useElements();
   
+  // 🔥 GOOGLE REFS
+  const pickupInputRef = useRef(null);
+  const destInputRef = useRef(null);
+  const stopRefs = useRef([]);
+
   const EXTRA_STOP_FEE = 50;
   const [extraStops, setExtraStops] = useState(0);
   const [stopNames, setStopNames] = useState([]); 
-  const [activeStopIndex, setActiveStopIndex] = useState(null); 
 
   const [mode, setMode] = useState('arrival');
   const [hourlyType, setHourlyType] = useState('half_day'); 
@@ -70,14 +69,59 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
   const [guestEmail, setGuestEmail] = useState('');
   const [flightNumber, setFlightNumber] = useState('');
 
-  const [pickupSuggestions, setPickupSuggestions] = useState([]);
-  const [destSuggestions, setDestSuggestions] = useState([]);
-  const [stopSuggestions, setStopSuggestions] = useState([]);
+  // 🔥 GOOGLE AUTOCOMPLETE LOGIC
+  useEffect(() => {
+    if (window.google && window.google.maps) {
+      const options = { 
+        componentRestrictions: { country: "ae" }, 
+        fields: ["formatted_address", "address_components"] 
+      };
 
-  useEffect(() => { if (selectedVehicle) setCarType(selectedVehicle); }, [selectedVehicle]);
+      const pickupAuto = new window.google.maps.places.Autocomplete(pickupInputRef.current, options);
+      pickupAuto.addListener("place_changed", () => {
+        const place = pickupAuto.getPlace();
+        if (place.formatted_address) {
+          setPickup(place.formatted_address);
+          if (mode !== 'arrival') setResolvedZone(resolveZoneFromGoogle(place.formatted_address));
+        }
+      });
 
-  const resolveZoneFromFeature = (s) => {
-    const text = (s.name + " " + (s.full_address || "")).toLowerCase();
+      const destAuto = new window.google.maps.places.Autocomplete(destInputRef.current, options);
+      destAuto.addListener("place_changed", () => {
+        const place = destAuto.getPlace();
+        if (place.formatted_address) {
+          setDestination(place.formatted_address);
+          if (mode === 'arrival') setResolvedZone(resolveZoneFromGoogle(place.formatted_address));
+        }
+      });
+    }
+  }, [mode]);
+
+  // 🔥 FIX FOR EXTRA STOPS AUTOCOMPLETE
+  useEffect(() => {
+    if (window.google && window.google.maps && window.google.maps.places && extraStops > 0) {
+      for (let i = 0; i < extraStops; i++) {
+        const inputEl = document.getElementById(`extra-stop-${i}`);
+        if (inputEl && !stopRefs.current[i]) {
+          const stopAuto = new window.google.maps.places.Autocomplete(inputEl, { componentRestrictions: { country: "ae" } });
+          stopAuto.addListener("place_changed", () => {
+            const p = stopAuto.getPlace();
+            if (p.formatted_address) {
+              setStopNames(prev => {
+                const newNames = [...prev];
+                newNames[i] = p.formatted_address;
+                return newNames;
+              });
+            }
+          });
+          stopRefs.current[i] = stopAuto;
+        }
+      }
+    }
+  }, [extraStops]);
+
+  const resolveZoneFromGoogle = (address) => {
+    const text = address.toLowerCase();
     if (text.includes('dubai')) return 'dxb';
     if (text.includes('sharjah')) return 'shj';
     if (text.includes('ajman')) return 'ajman';
@@ -88,15 +132,7 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
     return 'abu_dhabi';
   };
 
-  const handleSearch = async (query, setSuggestions) => {
-    if (query.length < 3) { setSuggestions([]); return; }
-    try {
-      const url = `https://api.mapbox.com/search/searchbox/v1/suggest?q=${encodeURIComponent(query)}&access_token=${MAPBOX_TOKEN}&session_token=session123&language=en&limit=5&country=ae`;
-      const res = await fetch(url);
-      const data = await res.json();
-      setSuggestions(data.suggestions || []);
-    } catch (err) { console.error("Mapbox Search Error:", err); }
-  };
+  useEffect(() => { if (selectedVehicle) setCarType(selectedVehicle); }, [selectedVehicle]);
 
   useEffect(() => {
     let base = 0;
@@ -147,10 +183,8 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
         "Type": mode === 'hourly' ? `Hourly (${hourlyType === 'half_day' ? '5h' : '10h'})` : mode,
         "Status": "Pending"
       };
-      const syncRes = await fetch(`${BACKEND_URL}/sync-google`, { method: 'POST', headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: [bookingData] }) });
-      const syncJson = await syncRes.json().catch(() => ({}));
-      const finalData = { ...bookingData, ...(syncJson.source ? { Source: syncJson.source } : {}), ...(syncJson.id ? { Source: syncJson.id } : {}), ...(syncJson.Source ? { Source: syncJson.Source } : {}) };
-      onBookingSuccess(finalData);
+      await fetch(`${BACKEND_URL}/sync-google`, { method: 'POST', headers: { "Content-Type": "application/json" }, body: JSON.stringify({ data: [bookingData] }) });
+      onBookingSuccess(bookingData);
     } catch (e) { alert("Submission error."); }
     setLoading(false);
   };
@@ -164,35 +198,35 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
           { id: 'transfer', label: 'Transfer', icon: MoveRight },
           { id: 'hourly', label: 'Hourly', icon: Clock }
         ].map((item) => (
-          <button key={item.id} type="button" onClick={() => { setMode(item.id); setResolvedZone(null); setPickup(''); setDestination(''); setExtraStops(0); setStopNames([]); }} className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${mode === item.id ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'}`}>
+          <button key={item.id} type="button" onClick={() => { setMode(item.id); setResolvedZone(null); setPickup(''); setDestination(''); setExtraStops(0); setStopNames([]); stopRefs.current = []; }} className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${mode === item.id ? 'bg-amber-500 text-slate-900' : 'text-slate-400 hover:text-white'}`}>
             <item.icon size={14} /> {item.label}
           </button>
         ))}
       </div>
 
       <div className="space-y-3">
+        {/* PICKUP */}
         <div className="relative">
-          <input value={pickup} onChange={(e) => { setPickup(e.target.value); handleSearch(e.target.value, setPickupSuggestions); }} required placeholder={mode === 'arrival' ? "Arrival Airport" : "Pickup Address"} className="w-full p-4 bg-slate-800 rounded-xl text-white outline-none text-xs focus:border-amber-500 border border-transparent" />
+          <input 
+            ref={pickupInputRef}
+            defaultValue={pickup}
+            required 
+            placeholder={mode === 'arrival' ? "Arrival Airport" : "Pickup Address"} 
+            className="w-full p-4 bg-slate-800 rounded-xl text-white outline-none text-xs focus:border-amber-500 border border-transparent" 
+          />
           <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-          {pickupSuggestions.length > 0 && (
-            <div className="absolute z-[100] w-full bg-slate-800 border border-slate-700 rounded-xl mt-1 shadow-2xl max-h-48 overflow-y-auto">
-              {pickupSuggestions.map(s => (
-                <div key={s.mapbox_id} onClick={() => { setPickup(s.name); setPickupSuggestions([]); if (mode === 'departure' || mode === 'transfer') setResolvedZone(resolveZoneFromFeature(s)); }} className="p-3 hover:bg-amber-500/10 hover:text-amber-500 cursor-pointer text-[10px] text-slate-300 border-b border-slate-700 last:border-0"><span className="font-bold text-white block">{s.name}</span><span className="opacity-70">{s.full_address}</span></div>
-              ))}
-            </div>
-          )}
         </div>
 
+        {/* DESTINATION */}
         <div className="relative">
-          <input value={destination} onChange={(e) => { setDestination(e.target.value); handleSearch(e.target.value, setDestSuggestions); }} required placeholder={mode === 'departure' ? "Departure Airport" : "Drop-off Address"} className="w-full p-4 bg-slate-800 rounded-xl text-white outline-none text-xs focus:border-amber-500 border border-transparent" />
+          <input 
+            ref={destInputRef}
+            defaultValue={destination}
+            required 
+            placeholder={mode === 'departure' ? "Departure Airport" : "Drop-off Address"} 
+            className="w-full p-4 bg-slate-800 rounded-xl text-white outline-none text-xs focus:border-amber-500 border border-transparent" 
+          />
           <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-          {destSuggestions.length > 0 && (
-            <div className="absolute z-[100] w-full bg-slate-800 border border-slate-700 rounded-xl mt-1 shadow-2xl max-h-48 overflow-y-auto">
-              {destSuggestions.map(s => (
-                <div key={s.mapbox_id} onClick={() => { setDestination(s.name); setDestSuggestions([]); if (mode === 'arrival') setResolvedZone(resolveZoneFromFeature(s)); }} className="p-3 hover:bg-amber-500/10 hover:text-amber-500 cursor-pointer text-[10px] text-slate-300 border-b border-slate-700 last:border-0"><span className="font-bold text-white block">{s.name}</span><span className="opacity-70">{s.full_address}</span></div>
-              ))}
-            </div>
-          )}
         </div>
       </div>
 
@@ -203,9 +237,18 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
             {extraStops > 0 && <span className="text-amber-500">+ AED {extraStops * EXTRA_STOP_FEE}</span>}
           </label>
           <div className="flex items-center gap-4">
-            <button type="button" onClick={() => { if (extraStops > 0) { setExtraStops(extraStops - 1); setStopNames(prev => prev.slice(0, -1)); } }} className="w-12 h-12 bg-slate-800 rounded-2xl text-amber-500 hover:bg-slate-700 transition-colors flex items-center justify-center font-black text-xl border border-slate-700/50">-</button>
+            <button type="button" onClick={() => { 
+              if (extraStops > 0) { 
+                setExtraStops(extraStops - 1); 
+                setStopNames(prev => prev.slice(0, -1)); 
+                stopRefs.current.pop(); // 🔥 THIS FIXES THE MEMORY BUG
+              } 
+            }} className="w-12 h-12 bg-slate-800 rounded-2xl text-amber-500 hover:bg-slate-700 transition-colors flex items-center justify-center font-black text-xl border border-slate-700/50">-</button>
             <span className="text-xl font-black w-8 text-center text-white">{extraStops}</span>
-            <button type="button" onClick={() => { setExtraStops(extraStops + 1); setStopNames(prev => [...prev, '']); }} className="w-12 h-12 bg-slate-800 rounded-2xl text-amber-500 hover:bg-slate-700 transition-colors flex items-center justify-center font-black text-xl border border-slate-700/50">+</button>
+            <button type="button" onClick={() => { 
+              setExtraStops(extraStops + 1); 
+              setStopNames(prev => [...prev, '']); 
+            }} className="w-12 h-12 bg-slate-800 rounded-2xl text-amber-500 hover:bg-slate-700 transition-colors flex items-center justify-center font-black text-xl border border-slate-700/50">+</button>
           </div>
           
           <AnimatePresence>
@@ -213,29 +256,14 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-visible relative space-y-2 mt-2">
                 {stopNames.map((_, index) => (
                   <div key={index} className="relative">
-                    <input type="text" placeholder={`Extra Stop ${index + 1} Address...`} value={stopNames[index] || ''}
-                      onChange={(e) => {
-                        const newNames = [...stopNames];
-                        newNames[index] = e.target.value;
-                        setStopNames(newNames);
-                        setActiveStopIndex(index);
-                        handleSearch(e.target.value, setStopSuggestions);
-                      }}
-                      className="w-full bg-[#0a101f] border border-slate-800 rounded-xl py-4 px-5 text-xs outline-none focus:border-amber-500 transition-all text-white placeholder-slate-600 pr-10" required />
+                    <input 
+                      id={`extra-stop-${index}`}
+                      type="text" 
+                      placeholder={`Extra Stop ${index + 1} Address...`} 
+                      className="w-full bg-[#0a101f] border border-slate-800 rounded-xl py-4 px-5 text-xs outline-none focus:border-amber-500 transition-all text-white placeholder-slate-600 pr-10" 
+                      required 
+                    />
                     <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
-                    {activeStopIndex === index && stopSuggestions.length > 0 && (
-                      <div className="absolute z-[110] w-full bg-slate-800 border border-slate-700 rounded-xl mt-1 shadow-2xl max-h-48 overflow-y-auto">
-                        {stopSuggestions.map(s => (
-                          <div key={s.mapbox_id} onClick={() => { 
-                              const newNames = [...stopNames];
-                              newNames[index] = s.name;
-                              setStopNames(newNames);
-                              setStopSuggestions([]); 
-                              setActiveStopIndex(null);
-                            }} className="p-3 hover:bg-amber-500/10 hover:text-amber-500 cursor-pointer text-[10px] text-slate-300 border-b border-slate-700 last:border-0"><span className="font-bold text-white block">{s.name}</span><span className="opacity-70">{s.full_address}</span></div>
-                        ))}
-                      </div>
-                    )}
                   </div>
                 ))}
               </motion.div>
@@ -282,7 +310,7 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
         <CardElement options={{ style: { base: { fontSize: '14px', color: '#fff' } } }} />
       </div>
 
-      <button type="submit" disabled={loading || !stripe || price === 0} className="w-full bg-amber-500 text-slate-900 py-5 rounded-2xl font-black uppercase text-xs hover:bg-amber-400 shadow-xl transition-all mt-4">{loading ? "Processing..." : (price > 0 ? `Pay ${paymentMethod === 'Card' ? 'AED ' + price : 'AED ' + Math.round(price * 0.25) + ' Deposit'} & Book` : "Select Location Suggestions")}</button>
+      <button type="submit" disabled={loading || !stripe || price === 0} className="w-full bg-amber-500 text-slate-900 py-5 rounded-2xl font-black uppercase text-xs hover:bg-amber-400 shadow-xl transition-all mt-4">{loading ? "Processing..." : (price > 0 ? `Pay ${paymentMethod === 'Card' ? 'AED ' + price : 'AED ' + Math.round(price * 0.25) + ' Deposit'} & Book` : "Search Address to Book")}</button>
 
       {price > 0 && breakdown && (
         <div className="bg-slate-800/50 p-4 rounded-xl text-[10px] font-bold uppercase tracking-widest space-y-2 border border-slate-700">
