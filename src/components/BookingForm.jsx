@@ -12,18 +12,18 @@ const stripePromise = loadStripe("pk_test_51Sx57rFVFmdbJGhjAMobcQfMvc9Ur2fWde1Ai
 // ─────────────────────────────────────────────────────────────────────────────
 const FLEET_PRICING = {
   zones: {
-    abu_dhabi: { arrival: { Sedan: 110, Business: 120, SUV: 130, MPV: 140, MiniBus: 180, Viano: 300 }, transfer: { Sedan: 110, Business: 120, SUV: 130, MPV: 140, MiniBus: 180, Viano: 300 } },
-    dxb: { arrival: { Sedan: 300, Business: 350, SUV: 350, MPV: 400, MiniBus: 550, Viano: 650 }, transfer: { Sedan: 300, Business: 350, SUV: 350, MPV: 400, MiniBus: 550, Viano: 650 } },
-    shj: { arrival: { Sedan: 400, Business: 450, SUV: 450, MPV: 500, MiniBus: 600, Viano: 750 }, transfer: { Sedan: 400, Business: 450, SUV: 450, MPV: 500, MiniBus: 600, Viano: 750 } },
-    ajman: { transfer: { Sedan: 400, Business: 450, SUV: 450, MPV: 500, MiniBus: 600, Viano: 750 } },
+    abu_dhabi: { arrival: { Sedan: 110, Business: 120, SUV: 120, MPV: 140, MiniBus: 180, Viano: 300 }, transfer: { Sedan: 110, Business: 120, SUV: 120, MPV: 140, MiniBus: 180, Viano: 300 } },
+    dxb: { arrival: { Sedan: 300, Business: 350, SUV: 350, MPV: 400, MiniBus: 450, Viano: 650 }, transfer: { Sedan: 300, Business: 350, SUV: 350, MPV: 400, MiniBus: 450, Viano: 650 } },
+    shj: { arrival: { Sedan: 400, Business: 450, SUV: 400, MPV: 450, MiniBus: 600, Viano: 750 }, transfer: { Sedan: 400, Business: 450, SUV: 450, MPV: 500, MiniBus: 600, Viano: 750 } },
+    ajman: { transfer: { Sedan: 400, Business: 450, SUV: 450, MPV: 450, MiniBus: 600, Viano: 750 } },
     umm_al_quwain: { transfer: { Sedan: 450, Business: 500, SUV: 500, MPV: 550, MiniBus: 650, Viano: 800 } },
     ras_al_khaimah: { transfer: { Sedan: 550, Business: 600, SUV: 600, MPV: 650, MiniBus: 750, Viano: 950 } },
     fujeirah: { transfer: { Sedan: 600, Business: 700, SUV: 700, MPV: 750, MiniBus: 850, Viano: 1000 } },
-    al_ain: { transfer: { Sedan: 400, Business: 500, SUV: 500, MPV: 550, MiniBus: 600, Viano: 700 } }
+    al_ain: { transfer: { Sedan: 400, Business: 450, SUV: 450, MPV: 500, MiniBus: 600, Viano: 700 } }
   },
   hourly: {
-    half_day: { Sedan: 350, Business: 400, SUV: 400, MPV: 450, MiniBus: 600, Viano: 750 }, 
-    full_day: { Sedan: 650, Business: 750, SUV: 750, MPV: 850, MiniBus: 1100, Viano: 1300 }
+    half_day: { Sedan: 400, Business: 450, SUV: 400, MPV: 450, MiniBus: 550, Viano: 900 }, 
+    full_day: { Sedan: 650, Business: 750, SUV: 700, MPV: 800, MiniBus: 900, Viano: 1500 }
   }
 };
 
