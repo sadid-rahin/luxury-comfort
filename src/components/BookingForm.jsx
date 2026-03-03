@@ -136,23 +136,38 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
 
   useEffect(() => {
     let base = 0;
+    let outOfCitySurcharge = 0;
+
     if (mode === 'hourly') {
         base = FLEET_PRICING.hourly[hourlyType][carType] || 0;
+        // Check if Hourly pickup is outside Abu Dhabi
+        const pickupZone = resolveZoneFromGoogle(pickup);
+        if (pickupZone && pickupZone !== 'abu_dhabi') {
+            outOfCitySurcharge = 100;
+        }
     } else {
         if (!resolvedZone) { setPrice(0); return; }
         const category = (mode === 'arrival') ? 'arrival' : 'transfer';
         const zoneData = FLEET_PRICING.zones[resolvedZone];
         base = (zoneData[category] || zoneData['transfer'])[carType] || 0;
     }
+    
     if (base === 0) return;
+    
     let extraStopsCost = (mode === 'arrival' || mode === 'departure') ? (extraStops * EXTRA_STOP_FEE) : 0;
-    let subtotal = base + extraStopsCost;
+    let subtotal = base + extraStopsCost + outOfCitySurcharge;
     let cardFee = paymentMethod === 'Card' ? (subtotal * 0.05) : 0;
     let vat = (subtotal + cardFee) * 0.05;
     let total = Math.round(subtotal + cardFee + vat);
-    setBreakdown({ base, extraStopsCost, cardFee: Math.round(cardFee), vat: Math.round(vat) });
+    
+    setBreakdown({ 
+      base: base + outOfCitySurcharge,
+      extraStopsCost, 
+      cardFee: Math.round(cardFee), 
+      vat: Math.round(vat) 
+    });
     setPrice(total);
-  }, [resolvedZone, carType, paymentMethod, mode, hourlyType, extraStops]);
+  }, [resolvedZone, pickup, carType, paymentMethod, mode, hourlyType, extraStops]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -241,7 +256,7 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
               if (extraStops > 0) { 
                 setExtraStops(extraStops - 1); 
                 setStopNames(prev => prev.slice(0, -1)); 
-                stopRefs.current.pop(); // 🔥 THIS FIXES THE MEMORY BUG
+                stopRefs.current.pop(); 
               } 
             }} className="w-12 h-12 bg-slate-800 rounded-2xl text-amber-500 hover:bg-slate-700 transition-colors flex items-center justify-center font-black text-xl border border-slate-700/50">-</button>
             <span className="text-xl font-black w-8 text-center text-white">{extraStops}</span>
@@ -315,6 +330,7 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
       {price > 0 && breakdown && (
         <div className="bg-slate-800/50 p-4 rounded-xl text-[10px] font-bold uppercase tracking-widest space-y-2 border border-slate-700">
           <div className="flex justify-between text-slate-400"><span>Base Fare {mode === 'hourly' && `(${hourlyType === 'half_day' ? '5h' : '10h'})`}</span> <span>AED {breakdown.base}</span></div>
+          {breakdown.outOfCitySurcharge > 0 && <div className="flex justify-between text-amber-500"><span>Out of City Surcharge</span> <span>+ AED {breakdown.outOfCitySurcharge}</span></div>}
           {breakdown.extraStopsCost > 0 && <div className="flex justify-between text-slate-400"><span>Extra Stops ({extraStops})</span> <span>+ AED {breakdown.extraStopsCost}</span></div>}
           <div className="flex justify-between text-slate-400"><span>VAT (5%)</span> <span>+ AED {breakdown.vat}</span></div>
           {breakdown.cardFee > 0 && <div className="flex justify-between text-blue-400"><span>Card Fee (5%)</span> <span>+ AED {breakdown.cardFee}</span></div>}
