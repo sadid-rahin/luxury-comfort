@@ -122,12 +122,16 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
 
   const resolveZoneFromGoogle = (address) => {
     const text = address.toLowerCase();
+    // New Double Price Zone
+    if (text.includes('khor fakkan') || text.includes('fujairah') || 
+        text.includes('ruwais') || text.includes('liwa')) return 'double_zone';
+    
+    // Standard Zones
     if (text.includes('dubai')) return 'dxb';
     if (text.includes('sharjah')) return 'shj';
     if (text.includes('ajman')) return 'ajman';
     if (text.includes('umm al quwain')) return 'umm_al_quwain';
     if (text.includes('ras al khaimah')) return 'ras_al_khaimah';
-    if (text.includes('fujairah')) return 'fujeirah';
     if (text.includes('al ain')) return 'al_ain';
     return 'abu_dhabi';
   };
