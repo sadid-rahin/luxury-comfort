@@ -54,6 +54,7 @@ export default function HostPanel() {
   const [driverName, setDriverName] = useState('');
   const [driverPhone, setDriverPhone] = useState('');
   const [vehicleNum, setVehicleNum] = useState('');
+  const [driverFee, setDriverFee] = useState(''); // 🔥 NEW: Driver Fee State
   const [waitingMinutes, setWaitingMinutes] = useState(0);
 
   const [hasNewOrder, setHasNewOrder] = useState(false);
@@ -116,20 +117,8 @@ export default function HostPanel() {
     setDriverPhone('');
     setVehicleNum('');
     setAgency('');
+    setDriverFee(''); // 🔥 Reset Driver Fee on new selection
     setWaitingMinutes(0);
-  };
-
-  const handleDriverChange = (e) => {
-    const selectedName = e.target.value;
-    setDriverName(selectedName);
-    const driver = DRIVER_DB.find(d => d.name === selectedName);
-    if (driver) {
-      setDriverPhone(driver.phone);
-      setVehicleNum(driver.plate);
-    } else {
-      setDriverPhone('');
-      setVehicleNum('');
-    }
   };
 
   // 🔥 UPDATED: Toggle Select All
@@ -224,6 +213,7 @@ export default function HostPanel() {
       "Driver": driverName,
       "Driver_number": safeDriverPhone,
       "Vehicle_number": vehicleNum,
+      "Driver_Fee": driverFee, // 🔥 NEW: Driver Fee sent to the database
       "Wait_Time": waitingMinutes,
       "Wait_Fee": waitFee,
       "Status": 'Host Confirmed',
@@ -543,19 +533,28 @@ export default function HostPanel() {
                 </div>
               )}
             </div>
-            <input value={agency} onChange={e => setAgency(e.target.value)} placeholder="Agency Name" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:border-amber-500" />
-            <select value={driverName} onChange={handleDriverChange} className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:border-amber-500" required>
-              <option value="">Select Driver</option>
-              {DRIVER_DB.map((d, i) => <option key={i} value={d.name}>{d.name}</option>)}
-            </select>
+            
+            {/* 🔥 UPDATED INPUTS */}
+            <input value={agency} onChange={e => setAgency(e.target.value)} placeholder="Agency Name" className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:border-amber-500 transition-all" />
+            
+            <input value={driverName} onChange={(e) => setDriverName(e.target.value)} placeholder="Driver Name" required className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:border-amber-500 transition-all" />
+            
             <div className="relative">
-              <input value={driverPhone} readOnly placeholder="Driver Phone" className="w-full p-4 bg-slate-100 border border-slate-200 rounded-2xl font-bold text-sm outline-none text-slate-500" />
+              <input value={driverPhone} onChange={(e) => setDriverPhone(e.target.value)} placeholder="Driver Phone (+971...)" required className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:border-amber-500 transition-all" />
               <Phone className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             </div>
+            
             <div className="relative">
-              <input value={vehicleNum} onChange={(e) => setVehicleNum(e.target.value)} placeholder="Vehicle Plate No." className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:border-amber-500 transition-all" />
+              <input value={vehicleNum} onChange={(e) => setVehicleNum(e.target.value)} placeholder="Vehicle Plate No." required className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:border-amber-500 transition-all" />
               <Car className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
             </div>
+
+            {/* 🔥 NEW: DRIVER FEE INPUT */}
+            <div className="relative">
+              <input value={driverFee} onChange={(e) => setDriverFee(e.target.value)} type="number" placeholder="Driver Fee (AED)" required className="w-full p-4 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:border-amber-500 transition-all" />
+              <CreditCard className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            </div>
+
             <button disabled={!selectedBooking} className="w-full bg-slate-900 text-white py-5 rounded-2xl font-black uppercase hover:bg-amber-500 hover:text-slate-900 transition-all shadow-xl disabled:opacity-50 disabled:cursor-not-allowed">
               Dispatch & Print
             </button>

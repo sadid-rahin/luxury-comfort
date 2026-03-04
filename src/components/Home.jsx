@@ -271,9 +271,9 @@ export default function Home() {
             </div>
             <div className="text-slate-400 text-sm flex flex-col gap-2 leading-relaxed md:text-right">
               <div><span className="text-amber-500 font-bold mr-1">Email:</span>elitetransport.dubai@gmial.com</div>
-              <div><span className="text-amber-500 font-bold mr-1">Phone:</span>+972 56 632 6983</div>
+              <div><span className="text-amber-500 font-bold mr-1">Phone:</span>+971 55 126 4988</div>
               <div><span className="text-amber-500 font-bold mr-1">Alternative Phone:</span>+971 56 964 7438</div>
-              <div><span className="text-amber-500 font-bold mr-1">Address:</span>Dubai, UAE</div>
+              <div><span className="text-amber-500 font-bold mr-1">Address:</span>Mazyad Mall Abu Dhabi, Abu Dhabi 00971 U.A.E</div>
             </div>
           </div>
         </footer>
@@ -455,7 +455,7 @@ function BookingWaitingScreen({ data }) {
           </button>
 
           <div className="no-print space-y-3">
-            <a href={`https://wa.me/971566326983?text=I%20wish%20to%20cancel%20my%20booking%20Ref:%20${sourceRef}`} target="_blank" rel="noreferrer" className="w-full bg-rose-500/10 text-rose-600 py-4 rounded-xl font-bold uppercase flex items-center justify-center gap-2 hover:bg-rose-600 hover:text-white transition-all border border-rose-200">
+            <a href={`https://wa.me/971551264988?text=I%20wish%20to%20cancel%20my%20booking%20Ref:%20${sourceRef}`} target="_blank" rel="noreferrer" className="w-full bg-rose-500/10 text-rose-600 py-4 rounded-xl font-bold uppercase flex items-center justify-center gap-2 hover:bg-rose-600 hover:text-white transition-all border border-rose-200">
               <X size={18} /> Cancel Booking via WhatsApp
             </a>
             <p className="text-[9px] text-slate-400 text-center italic uppercase font-black">* Cancellations are subject to the 6-hour refund policy.</p>

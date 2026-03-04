@@ -22,7 +22,7 @@ const FLEET_PRICING = {
     al_ain: { transfer: { Sedan: 400, Business: 450, SUV: 450, MPV: 500, MiniBus: 600, Viano: 700 } }
   },
   hourly: {
-    half_day: { Sedan: 400, Business: 450, SUV: 400, MPV: 450, MiniBus: 550, Viano: 900 }, 
+    half_day: { Sedan: 400, Business: 450, SUV: 400, MPV: 450, MiniBus: 550, Viano: 900 },
     full_day: { Sedan: 650, Business: 750, SUV: 700, MPV: 800, MiniBus: 900, Viano: 1500 }
   }
 };
@@ -39,7 +39,7 @@ const FLEET_DATA = [
 function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
   const stripe = useStripe();
   const elements = useElements();
-  
+
   // 🔥 GOOGLE REFS
   const pickupInputRef = useRef(null);
   const destInputRef = useRef(null);
@@ -47,10 +47,10 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
 
   const EXTRA_STOP_FEE = 50;
   const [extraStops, setExtraStops] = useState(0);
-  const [stopNames, setStopNames] = useState([]); 
+  const [stopNames, setStopNames] = useState([]);
 
   const [mode, setMode] = useState('arrival');
-  const [hourlyType, setHourlyType] = useState('half_day'); 
+  const [hourlyType, setHourlyType] = useState('half_day');
   const [pax, setPax] = useState(1);
   const [luggage, setLuggage] = useState(0);
   const [pickup, setPickup] = useState('');
@@ -72,9 +72,9 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
   // 🔥 GOOGLE AUTOCOMPLETE LOGIC
   useEffect(() => {
     if (window.google && window.google.maps) {
-      const options = { 
-        componentRestrictions: { country: "ae" }, 
-        fields: ["formatted_address", "address_components"] 
+      const options = {
+        componentRestrictions: { country: "ae" },
+        fields: ["formatted_address", "address_components"]
       };
 
       const pickupAuto = new window.google.maps.places.Autocomplete(pickupInputRef.current, options);
@@ -123,9 +123,9 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
   const resolveZoneFromGoogle = (address) => {
     const text = address.toLowerCase();
     // New Double Price Zone
-    if (text.includes('khor fakkan') || text.includes('fujairah') || 
-        text.includes('ruwais') || text.includes('liwa')) return 'double_zone';
-    
+    if (text.includes('khor fakkan') || text.includes('fujairah') ||
+      text.includes('ruwais') || text.includes('liwa')) return 'double_zone';
+
     // Standard Zones
     if (text.includes('dubai')) return 'dxb';
     if (text.includes('sharjah')) return 'shj';
@@ -143,32 +143,32 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
     let outOfCitySurcharge = 0;
 
     if (mode === 'hourly') {
-        base = FLEET_PRICING.hourly[hourlyType][carType] || 0;
-        // Check if Hourly pickup is outside Abu Dhabi
-        const pickupZone = resolveZoneFromGoogle(pickup);
-        if (pickupZone && pickupZone !== 'abu_dhabi') {
-            outOfCitySurcharge = 100;
-        }
+      base = FLEET_PRICING.hourly[hourlyType][carType] || 0;
+      // Check if Hourly pickup is outside Abu Dhabi
+      const pickupZone = resolveZoneFromGoogle(pickup);
+      if (pickupZone && pickupZone !== 'abu_dhabi') {
+        outOfCitySurcharge = 100;
+      }
     } else {
-        if (!resolvedZone) { setPrice(0); return; }
-        const category = (mode === 'arrival') ? 'arrival' : 'transfer';
-        const zoneData = FLEET_PRICING.zones[resolvedZone];
-        base = (zoneData[category] || zoneData['transfer'])[carType] || 0;
+      if (!resolvedZone) { setPrice(0); return; }
+      const category = (mode === 'arrival') ? 'arrival' : 'transfer';
+      const zoneData = FLEET_PRICING.zones[resolvedZone];
+      base = (zoneData[category] || zoneData['transfer'])[carType] || 0;
     }
-    
+
     if (base === 0) return;
-    
+
     let extraStopsCost = (mode === 'arrival' || mode === 'departure') ? (extraStops * EXTRA_STOP_FEE) : 0;
     let subtotal = base + extraStopsCost + outOfCitySurcharge;
     let cardFee = paymentMethod === 'Card' ? (subtotal * 0.05) : 0;
     let vat = (subtotal + cardFee) * 0.05;
     let total = Math.round(subtotal + cardFee + vat);
-    
-    setBreakdown({ 
+
+    setBreakdown({
       base: base + outOfCitySurcharge,
-      extraStopsCost, 
-      cardFee: Math.round(cardFee), 
-      vat: Math.round(vat) 
+      extraStopsCost,
+      cardFee: Math.round(cardFee),
+      vat: Math.round(vat)
     });
     setPrice(total);
   }, [resolvedZone, pickup, carType, paymentMethod, mode, hourlyType, extraStops]);
@@ -226,24 +226,24 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
       <div className="space-y-3">
         {/* PICKUP */}
         <div className="relative">
-          <input 
+          <input
             ref={pickupInputRef}
             defaultValue={pickup}
-            required 
-            placeholder={mode === 'arrival' ? "Arrival Airport" : "Pickup Address"} 
-            className="w-full p-4 bg-slate-800 rounded-xl text-white outline-none text-xs focus:border-amber-500 border border-transparent" 
+            required
+            placeholder={mode === 'arrival' ? "Arrival Airport" : "Pickup Address"}
+            className="w-full p-4 bg-slate-800 rounded-xl text-white outline-none text-xs focus:border-amber-500 border border-transparent"
           />
           <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
         </div>
 
         {/* DESTINATION */}
         <div className="relative">
-          <input 
+          <input
             ref={destInputRef}
             defaultValue={destination}
-            required 
-            placeholder={mode === 'departure' ? "Departure Airport" : "Drop-off Address"} 
-            className="w-full p-4 bg-slate-800 rounded-xl text-white outline-none text-xs focus:border-amber-500 border border-transparent" 
+            required
+            placeholder={mode === 'departure' ? "Departure Airport" : "Drop-off Address"}
+            className="w-full p-4 bg-slate-800 rounded-xl text-white outline-none text-xs focus:border-amber-500 border border-transparent"
           />
           <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
         </div>
@@ -256,31 +256,31 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
             {extraStops > 0 && <span className="text-amber-500">+ AED {extraStops * EXTRA_STOP_FEE}</span>}
           </label>
           <div className="flex items-center gap-4">
-            <button type="button" onClick={() => { 
-              if (extraStops > 0) { 
-                setExtraStops(extraStops - 1); 
-                setStopNames(prev => prev.slice(0, -1)); 
-                stopRefs.current.pop(); 
-              } 
+            <button type="button" onClick={() => {
+              if (extraStops > 0) {
+                setExtraStops(extraStops - 1);
+                setStopNames(prev => prev.slice(0, -1));
+                stopRefs.current.pop();
+              }
             }} className="w-12 h-12 bg-slate-800 rounded-2xl text-amber-500 hover:bg-slate-700 transition-colors flex items-center justify-center font-black text-xl border border-slate-700/50">-</button>
             <span className="text-xl font-black w-8 text-center text-white">{extraStops}</span>
-            <button type="button" onClick={() => { 
-              setExtraStops(extraStops + 1); 
-              setStopNames(prev => [...prev, '']); 
+            <button type="button" onClick={() => {
+              setExtraStops(extraStops + 1);
+              setStopNames(prev => [...prev, '']);
             }} className="w-12 h-12 bg-slate-800 rounded-2xl text-amber-500 hover:bg-slate-700 transition-colors flex items-center justify-center font-black text-xl border border-slate-700/50">+</button>
           </div>
-          
+
           <AnimatePresence>
             {extraStops > 0 && (
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-visible relative space-y-2 mt-2">
                 {stopNames.map((_, index) => (
                   <div key={index} className="relative">
-                    <input 
+                    <input
                       id={`extra-stop-${index}`}
-                      type="text" 
-                      placeholder={`Extra Stop ${index + 1} Address...`} 
-                      className="w-full bg-[#0a101f] border border-slate-800 rounded-xl py-4 px-5 text-xs outline-none focus:border-amber-500 transition-all text-white placeholder-slate-600 pr-10" 
-                      required 
+                      type="text"
+                      placeholder={`Extra Stop ${index + 1} Address...`}
+                      className="w-full bg-[#0a101f] border border-slate-800 rounded-xl py-4 px-5 text-xs outline-none focus:border-amber-500 transition-all text-white placeholder-slate-600 pr-10"
+                      required
                     />
                     <MapPin className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-500" size={14} />
                   </div>
@@ -293,8 +293,8 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
 
       {mode === 'hourly' && (
         <div className="flex bg-slate-800/50 p-1 rounded-xl gap-2">
-            <button type="button" onClick={() => setHourlyType('half_day')} className={`flex-1 py-2 rounded-lg text-[9px] font-bold uppercase ${hourlyType === 'half_day' ? 'bg-slate-700 text-amber-500 border border-amber-500/30' : 'text-slate-500'}`}>5 Hours (Half Day)</button>
-            <button type="button" onClick={() => setHourlyType('full_day')} className={`flex-1 py-2 rounded-lg text-[9px] font-bold uppercase ${hourlyType === 'full_day' ? 'bg-slate-700 text-amber-500 border border-amber-500/30' : 'text-slate-500'}`}>10 Hours (Full Day)</button>
+          <button type="button" onClick={() => setHourlyType('half_day')} className={`flex-1 py-2 rounded-lg text-[9px] font-bold uppercase ${hourlyType === 'half_day' ? 'bg-slate-700 text-amber-500 border border-amber-500/30' : 'text-slate-500'}`}>5 Hours (Half Day)</button>
+          <button type="button" onClick={() => setHourlyType('full_day')} className={`flex-1 py-2 rounded-lg text-[9px] font-bold uppercase ${hourlyType === 'full_day' ? 'bg-slate-700 text-amber-500 border border-amber-500/30' : 'text-slate-500'}`}>10 Hours (Full Day)</button>
         </div>
       )}
 
@@ -322,10 +322,18 @@ function CheckoutForm({ onBookingSuccess, selectedVehicle }) {
         <div className="bg-[#0a101f] border border-slate-800 p-3 rounded-2xl flex justify-between items-center"><span className="text-[9px] font-black uppercase text-slate-500 px-2">Luggage</span><div className="flex gap-4"><button type="button" onClick={() => setLuggage(Math.max(0, luggage - 1))} className="text-amber-500">-</button><span className="text-sm font-bold text-white">{luggage}</span><button type="button" onClick={() => setLuggage(luggage + 1)} className="text-amber-500">+</button></div></div>
       </div>
 
-      <button type="button" onClick={() => { const name = guestName || 'New Guest'; window.open(`https://wa.me/971XXXXXXXXX?text=${encodeURIComponent(`Special Requirement for ${name}:\nPickup: ${pickup}\nDropoff: ${destination}`)}`, '_blank'); }} className="w-full mt-2 flex items-center justify-between p-4 rounded-2xl bg-[#0a101f] border border-slate-800 hover:border-amber-500/50 transition-all group"><span className="text-[10px] font-black uppercase tracking-widest text-amber-500">Special Requirement</span><Plus className="text-amber-500" size={16} /></button>
+      <a
+        href={`https://wa.me/971551264988?text=${encodeURIComponent(`Special Requirement for ${guestName || 'New Guest'} | Pickup: ${pickup} | Dropoff: ${destination}`)}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="w-full mt-2 flex items-center justify-between p-4 rounded-2xl bg-[#0a101f] border border-slate-800 hover:border-amber-500/50 transition-all group cursor-pointer block"
+      >
+        <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">Special Requirement</span>
+        <Plus className="text-amber-500" size={16} />
+      </a>
 
       <div className="bg-slate-800 p-4 rounded-2xl border border-slate-700">
-        <div className="flex justify-between items-center mb-2 border-b border-slate-700 pb-2"><span className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1"><Lock size={10} className="text-emerald-500"/> Secure Payment</span></div>
+        <div className="flex justify-between items-center mb-2 border-b border-slate-700 pb-2"><span className="text-[9px] font-bold text-slate-400 uppercase flex items-center gap-1"><Lock size={10} className="text-emerald-500" /> Secure Payment</span></div>
         <CardElement options={{ style: { base: { fontSize: '14px', color: '#fff' } } }} />
       </div>
 
